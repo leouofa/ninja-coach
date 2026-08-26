@@ -22,7 +22,11 @@ if (!existsSync(dbPath)) {
 
 const sqlite = new Database(dbPath);
 
-sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("busy_timeout = 5000");
+
+if (sqlite.pragma("journal_mode", { simple: true }) !== "wal") {
+  sqlite.pragma("journal_mode = WAL");
+}
 sqlite.pragma("foreign_keys = ON");
 
 export const db = drizzle(sqlite, { schema });

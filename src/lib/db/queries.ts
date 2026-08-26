@@ -34,32 +34,44 @@ export interface AddMessageInput {
   sessionId: string;
   role: MessageRole;
   content: string;
+  id?: string;
 }
 
 export function addMessage(input: AddMessageInput): Message {
   const now = new Date();
-  const message = db.transaction((tx) => {
-    const row = tx
+  return db.transaction((tx) => {
+    let row: Message | undefined = tx
       .insert(messages)
       .values({
-        id: randomUUID(),
+        id: input.id ?? randomUUID(),
         sessionId: input.sessionId,
         role: input.role,
         content: input.content,
         createdAt: now,
       })
+      .onConflictDoNothing({ target: messages.id })
       .returning()
       .get();
+
+    if (!row) {
+      if (!input.id) {
+        throw new Error(`Failed to insert message into session ${input.sessionId}`);
+      }
+      row = tx.select().from(messages).where(eq(messages.id, input.id)).get();
+      if (!row || row.sessionId !== input.sessionId) {
+        throw new Error(
+          `Message ${input.id} does not belong to session ${input.sessionId}`,
+        );
+      }
+      return row;
+    }
+
     tx.update(sessions)
       .set({ updatedAt: now })
       .where(eq(sessions.id, input.sessionId))
       .run();
     return row;
   });
-  if (!message) {
-    throw new Error(`Failed to insert message into session ${input.sessionId}`);
-  }
-  return message;
 }
 
 export function getMessage(id: string): Message | undefined {
