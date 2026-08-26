@@ -12,6 +12,9 @@
     "db:roundtrip": "NODE_OPTIONS=--conditions=react-server tsx scripts/roundtrip.ts"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.51",
+    "@ai-sdk/groq": "^4.0.31",
+    "ai": "^7.0.79",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "next": "16.3.3",
