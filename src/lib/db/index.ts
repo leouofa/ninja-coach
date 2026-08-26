@@ -5,8 +5,10 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import * as sqliteVec from "sqlite-vec";
 
 import * as schema from "./schema";
+import { ensureVectorSchema } from "./vector-schema";
 
 const dbPath = process.env.DATABASE_PATH
   ? path.resolve(process.env.DATABASE_PATH)
@@ -29,6 +31,10 @@ if (sqlite.pragma("journal_mode", { simple: true }) !== "wal") {
 }
 sqlite.pragma("foreign_keys = ON");
 
+sqliteVec.load(sqlite);
+
 export const db = drizzle(sqlite, { schema });
+
+ensureVectorSchema(sqlite);
 
 export type Database = typeof db;
