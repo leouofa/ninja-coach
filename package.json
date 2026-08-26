@@ -9,12 +9,14 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:roundtrip": "NODE_OPTIONS=--conditions=react-server tsx scripts/roundtrip.ts"
+    "db:roundtrip": "NODE_OPTIONS=--conditions=react-server tsx scripts/roundtrip.ts",
+    "embeddings:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/embeddings-check.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.51",
     "@ai-sdk/groq": "^4.0.31",
     "@ai-sdk/react": "^4.0.82",
+    "@huggingface/transformers": "^4.2.0",
     "ai": "^7.0.79",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
@@ -35,5 +37,8 @@
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5"
+  },
+  "overrides": {
+    "sharp": "0.35.3"
   }
 }
