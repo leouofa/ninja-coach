@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatProps {
@@ -60,8 +61,16 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
       >
         {messages.length === 0 && (
           <div className="m-auto max-w-md rounded-2xl border border-zinc-200 p-6 text-center text-sm leading-6 text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-            Your coach is ready. Share a goal, report on last week,
-            or just say hi to get started.
+            <p>
+              Your coach is ready. Share a goal, report on last week,
+              or just say hi to get started.
+            </p>
+            <Link
+              href="/checkin"
+              className="mt-3 inline-block font-medium text-zinc-900 underline underline-offset-4 dark:text-zinc-100"
+            >
+              Start weekly check-in
+            </Link>
           </div>
         )}
         {messages.map((message) => (

@@ -12,7 +12,8 @@
     "db:roundtrip": "NODE_OPTIONS=--conditions=react-server tsx scripts/roundtrip.ts",
     "embeddings:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/embeddings-check.ts",
     "vector:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/vector-check.ts",
-    "memory:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/memory-check.ts"
+    "memory:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/memory-check.ts",
+    "coach:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/coach-check.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.51",

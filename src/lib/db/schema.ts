@@ -7,6 +7,9 @@ const msTimestamp = (name: string) =>
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
   title: text("title").notNull().default("New session"),
+  kind: text("kind", { enum: ["open", "checkin"] })
+    .notNull()
+    .default("open"),
   createdAt: msTimestamp("created_at"),
   updatedAt: msTimestamp("updated_at"),
 });
@@ -63,6 +66,7 @@ export const summaries = sqliteTable("summaries", {
 });
 
 export type Session = typeof sessions.$inferSelect;
+export type SessionKind = (typeof sessions.$inferInsert)["kind"];
 export type MessageRole = (typeof messages.$inferInsert)["role"];
 export type Message = typeof messages.$inferSelect;
 export type GoalStatus = (typeof goals.$inferInsert)["status"];

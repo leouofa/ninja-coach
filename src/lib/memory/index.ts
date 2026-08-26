@@ -6,8 +6,13 @@ import { generateText } from "ai";
 import { eq } from "drizzle-orm";
 
 import { getModel } from "../ai";
+import { COACH_PERSONA, CHECKIN_STRUCTURE } from "../coach/persona";
 import { db } from "../db";
-import { getMessages } from "../db/queries";
+import {
+  getMessages,
+  getMostRecentSession,
+  getSession,
+} from "../db/queries";
 import {
   summaries,
   type Message,
@@ -24,11 +29,6 @@ export const SUMMARIZE_CHUNK = 8;
 // window don't shrink the result below MEMORY_TOP_K.
 const RETRIEVAL_CANDIDATES = MEMORY_TOP_K * 4;
 const MAX_MEMORY_CHARS = 480;
-
-const COACH_PERSONA =
-  "You are Ninja Coach, a warm but direct AI life coach. You help the user " +
-  "set goals, review weekly progress, and stay accountable. Keep replies " +
-  "concise, concrete, and encouraging. Ask at most one follow-up question.";
 
 const SUMMARIZER_PROMPT =
   "Summarize the following coaching conversation as a compact third-person " +
@@ -160,6 +160,26 @@ async function retrieveMemories(
     .map((hit) => clip(hit.text));
 }
 
+const RECAP_MESSAGE_COUNT = 6;
+
+function lastSessionRecap(currentSessionId: string): string | undefined {
+  const prior = getMostRecentSession(currentSessionId);
+  if (!prior) {
+    return undefined;
+  }
+
+  const summary = getSummary(prior.id);
+  if (summary) {
+    return summary.content;
+  }
+
+  const recent = getMessages(prior.id).slice(-RECAP_MESSAGE_COUNT);
+  if (recent.length === 0) {
+    return undefined;
+  }
+  return formatTranscript(recent);
+}
+
 export interface BuiltContext {
   system: string;
   /** Messages sent verbatim; always bounded by VERBATIM_WINDOW. */
@@ -167,15 +187,25 @@ export interface BuiltContext {
 }
 
 /**
- * Builds the RAG context for the next turn: persona + summary of compacted
- * history + globally retrieved exchanges that are not already visible in
- * the verbatim window + the window itself.
+ * Builds the RAG context for the next turn: persona + (for check-in
+ * sessions) structure and a recap of the most recent prior session +
+ * summary of compacted history + globally retrieved exchanges that are not
+ * already visible in the verbatim window + the window itself.
  */
 export async function buildContext(sessionId: string): Promise<BuiltContext> {
+  const session = getSession(sessionId);
   const history = getMessages(sessionId);
   const window = history.slice(-VERBATIM_WINDOW);
 
   const sections = [COACH_PERSONA];
+
+  if (session?.kind === "checkin") {
+    sections.push(CHECKIN_STRUCTURE);
+    const recap = lastSessionRecap(sessionId);
+    if (recap) {
+      sections.push(`Since last session:\n${recap}`);
+    }
+  }
 
   const summary = getSummary(sessionId);
   if (summary) {
