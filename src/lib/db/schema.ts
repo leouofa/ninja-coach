@@ -32,7 +32,7 @@ export const goals = sqliteTable("goals", {
   id: text("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status", { enum: ["active", "paused", "completed"] })
+  status: text("status", { enum: ["active", "paused", "completed", "dropped"] })
     .notNull()
     .default("active"),
   createdAt: msTimestamp("created_at"),
