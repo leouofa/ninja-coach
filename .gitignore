@@ -44,6 +44,9 @@ yarn-error.log*
 *.db-wal
 *.db-shm
 
+# model cache (local embeddings)
+/.cache/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
