@@ -37,8 +37,23 @@ export const goals = sqliteTable("goals", {
   updatedAt: msTimestamp("updated_at"),
 });
 
+export const embeddings = sqliteTable(
+  "embeddings",
+  {
+    id: text("id").primaryKey(),
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    text: text("text").notNull(),
+    createdAt: msTimestamp("created_at"),
+  },
+  (table) => [
+    index("embeddings_source_idx").on(table.sourceType, table.sourceId),
+  ],
+);
+
 export type Session = typeof sessions.$inferSelect;
 export type MessageRole = (typeof messages.$inferInsert)["role"];
 export type Message = typeof messages.$inferSelect;
 export type GoalStatus = (typeof goals.$inferInsert)["status"];
 export type Goal = typeof goals.$inferSelect;
+export type Embedding = typeof embeddings.$inferSelect;
