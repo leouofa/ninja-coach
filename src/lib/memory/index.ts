@@ -12,6 +12,7 @@ import {
   getMessages,
   getMostRecentSession,
   getSession,
+  listGoals,
 } from "../db/queries";
 import {
   summaries,
@@ -205,6 +206,17 @@ export async function buildContext(sessionId: string): Promise<BuiltContext> {
     if (recap) {
       sections.push(`Since last session:\n${recap}`);
     }
+  }
+
+  // Active goals are injected into every session so the coach always knows
+  // what the user is working toward.
+  const activeGoals = listGoals("active");
+  if (activeGoals.length > 0) {
+    sections.push(
+      `Active goals:\n${activeGoals
+        .map((g) => `- ${g.title}${g.description ? ` - ${g.description}` : ""}`)
+        .join("\n")}`,
+    );
   }
 
   const summary = getSummary(sessionId);

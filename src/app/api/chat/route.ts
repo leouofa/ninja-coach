@@ -9,6 +9,7 @@ import {
 import { getModel } from "@/lib/ai";
 import { toUIMessages, uiMessageText } from "@/lib/chat/messages";
 import { addMessage, getSession } from "@/lib/db/queries";
+import { syncGoalsFromConversation } from "@/lib/goals";
 import {
   buildContext,
   maybeSummarizeSession,
@@ -116,6 +117,10 @@ export async function POST(request: Request) {
             assistantText: coachReply,
           }).catch((error) => {
             console.error("[chat] failed to remember exchange:", error);
+          });
+
+          void syncGoalsFromConversation(sessionId).catch((error) => {
+            console.error("[chat] goal sync failed:", error);
           });
         }
       },
