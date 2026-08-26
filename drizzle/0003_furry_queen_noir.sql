@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `kind` text DEFAULT 'open' NOT NULL;

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, ne } from "drizzle-orm";
 
 import { db } from "./index";
 import {
@@ -12,13 +12,30 @@ import {
   type Message,
   type MessageRole,
   type Session,
+  type SessionKind,
 } from "./schema";
 
-export function createSession(input: { title?: string } = {}): Session {
+export function createSession(input: {
+  title?: string;
+  kind?: SessionKind;
+} = {}): Session {
   return db
     .insert(sessions)
-    .values({ id: randomUUID(), title: input.title ?? "New session" })
+    .values({
+      id: randomUUID(),
+      title: input.title ?? "New session",
+      kind: input.kind ?? "open",
+    })
     .returning()
+    .get();
+}
+
+export function getMostRecentSession(exceptId: string): Session | undefined {
+  return db
+    .select()
+    .from(sessions)
+    .where(ne(sessions.id, exceptId))
+    .orderBy(desc(sessions.updatedAt))
     .get();
 }
 

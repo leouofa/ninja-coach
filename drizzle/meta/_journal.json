@@ -22,6 +22,13 @@
       "when": 1787714419633,
       "tag": "0002_soft_sunfire",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787719025278,
+      "tag": "0003_furry_queen_noir",
+      "breakpoints": true
     }
   ]
 }
