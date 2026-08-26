@@ -8,12 +8,12 @@ import {
 
 import { getModel } from "@/lib/ai";
 import { toUIMessages, uiMessageText } from "@/lib/chat/messages";
-import { addMessage, getMessages, getSession } from "@/lib/db/queries";
-
-const SYSTEM_PROMPT =
-  "You are Ninja Coach, a warm but direct AI life coach. You help the user " +
-  "set goals, review weekly progress, and stay accountable. Keep replies " +
-  "concise, concrete, and encouraging. Ask at most one follow-up question.";
+import { addMessage, getSession } from "@/lib/db/queries";
+import {
+  buildContext,
+  maybeSummarizeSession,
+  rememberExchange,
+} from "@/lib/memory";
 
 interface ChatRequestBody {
   sessionId?: unknown;
@@ -73,11 +73,18 @@ export async function POST(request: Request) {
     content: uiMessageText(incoming),
   });
 
-  const history = toUIMessages(getMessages(sessionId));
+  try {
+    await maybeSummarizeSession(sessionId);
+  } catch (error) {
+    console.error("[chat] summarization failed:", error);
+  }
+
+  const { system, window } = await buildContext(sessionId);
+  const history = toUIMessages(window);
 
   const result = streamText({
     model,
-    system: SYSTEM_PROMPT,
+    system,
     messages: await convertToModelMessages(history),
     onError({ error }) {
       console.error("[chat] streaming error:", error);
@@ -92,11 +99,24 @@ export async function POST(request: Request) {
       originalMessages: history,
       onError: () => "Something went wrong while coaching. Please try again.",
       onEnd: ({ messages }) => {
+        const replies: string[] = [];
         for (const message of messages.slice(history.length)) {
           if (message.role !== "assistant") continue;
           const text = uiMessageText(message);
           if (!text.trim()) continue;
           addMessage({ sessionId, role: "assistant", content: text });
+          replies.push(text.trim());
+        }
+
+        const coachReply = replies.join("\n").trim();
+        if (coachReply) {
+          void rememberExchange({
+            userMessageId: incoming.id,
+            userText: uiMessageText(incoming),
+            assistantText: coachReply,
+          }).catch((error) => {
+            console.error("[chat] failed to remember exchange:", error);
+          });
         }
       },
     }),
