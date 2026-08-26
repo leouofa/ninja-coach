@@ -54,7 +54,7 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-8rem)] min-h-[28rem] flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div
         className="flex flex-1 flex-col justify-start gap-4 overflow-y-auto"
         aria-live="polite"
