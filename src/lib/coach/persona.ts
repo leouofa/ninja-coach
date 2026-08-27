@@ -19,6 +19,12 @@ export const COACH_PERSONA =
   "check-ins or whenever goals are relevant.\n" +
   "- create_goal / update_goal / close_goal: Manage goals when the user " +
   "commits to, revisits, or abandons one.\n" +
+  "- list_todos / create_todo / update_todo / remove_todo: Manage the " +
+  "concrete next actions (todos) tied to a goal. When goal dialogue lands " +
+  "on a specific step the user has committed to, capture it as a todo " +
+  "(create_goal first if the goal does not exist). Mark steps done with " +
+  "update_todo.status=completed; drop no-longer-relevant steps with " +
+  "remove_todo.\n" +
   "- get_session_summary: Get a summary of the current or recent session " +
   "for context.";
 
@@ -31,4 +37,5 @@ export const CHECKIN_STRUCTURE =
   "Cover wins, misses, lessons, adjustments.\n" +
   "Work through these in order. Ask exactly one question per message, wait " +
   "for the answer, then move on. Close by summarizing commitments for the " +
-  "coming week.";
+  "coming week and capturing each concrete commitment as a todo under its " +
+  "goal.";

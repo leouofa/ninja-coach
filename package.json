@@ -14,7 +14,8 @@
     "vector:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/vector-check.ts",
     "memory:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/memory-check.ts",
     "coach:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/coach-check.ts",
-    "goals:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/goals-check.ts"
+    "goals:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/goals-check.ts",
+    "todos:check": "NODE_OPTIONS=--conditions=react-server tsx scripts/todos-check.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.51",

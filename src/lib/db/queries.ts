@@ -1,18 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "./index";
 import {
   goals,
   messages,
   sessions,
+  todos,
   type Goal,
   type GoalStatus,
   type Message,
   type MessageRole,
   type Session,
   type SessionKind,
+  type Todo,
+  type TodoStatus,
 } from "./schema";
 
 export function createSession(input: {
@@ -151,4 +154,92 @@ export function updateGoalStatus(id: string, status: GoalStatus): Goal | undefin
     .where(eq(goals.id, id))
     .returning()
     .get();
+}
+
+export function createTodo(input: {
+  goalId: string;
+  title: string;
+  description?: string;
+}): Todo | undefined {
+  const goal = getGoal(input.goalId);
+  if (!goal) {
+    return undefined;
+  }
+  return db
+    .insert(todos)
+    .values({
+      id: randomUUID(),
+      goalId: input.goalId,
+      title: input.title,
+      description: input.description ?? null,
+    })
+    .returning()
+    .get();
+}
+
+export function getTodo(id: string): Todo | undefined {
+  return db.select().from(todos).where(eq(todos.id, id)).get();
+}
+
+export function listTodos(input: { goalId?: string; status?: TodoStatus } = {}): Todo[] {
+  const conditions = [];
+  if (input.goalId) conditions.push(eq(todos.goalId, input.goalId));
+  if (input.status) conditions.push(eq(todos.status, input.status));
+  return db
+    .select()
+    .from(todos)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(asc(todos.createdAt), asc(todos.id))
+    .all();
+}
+
+export function listOpenTodos(): Todo[] {
+  return db
+    .select()
+    .from(todos)
+    .where(inArray(todos.status, ["pending", "in_progress"]))
+    .orderBy(asc(todos.createdAt), asc(todos.id))
+    .all();
+}
+
+export type TodoWithGoal = Todo & { goalTitle: string };
+
+export function listOpenTodosWithGoal(): TodoWithGoal[] {
+  return db
+    .select({
+      id: todos.id,
+      goalId: todos.goalId,
+      title: todos.title,
+      description: todos.description,
+      status: todos.status,
+      createdAt: todos.createdAt,
+      updatedAt: todos.updatedAt,
+      goalTitle: goals.title,
+    })
+    .from(todos)
+    .innerJoin(goals, eq(todos.goalId, goals.id))
+    .where(inArray(todos.status, ["pending", "in_progress"]))
+    .orderBy(asc(todos.createdAt), asc(todos.id))
+    .all();
+}
+
+export function updateTodo(
+  id: string,
+  input: { title?: string; description?: string | null; status?: TodoStatus },
+): Todo | undefined {
+  return db
+    .update(todos)
+    .set({
+      ...(input.title ? { title: input.title } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.status ? { status: input.status } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(todos.id, id))
+    .returning()
+    .get();
+}
+
+export function deleteTodo(id: string): boolean {
+  return db.delete(todos).where(eq(todos.id, id)).run().changes > 0;
 }
