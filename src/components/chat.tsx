@@ -184,7 +184,7 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div
         className="flex flex-1 flex-col justify-start gap-4 overflow-y-auto"
         aria-live="polite"

@@ -30,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-dvh flex-col bg-background text-foreground">
+      <body className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
         <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800 lg:hidden">
           <Link
             href="/"
@@ -55,8 +55,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </div>
         <div className="flex min-h-0 flex-1">
           <SessionsSidebar />
-          <main className="flex min-w-0 flex-1 flex-col">{children}</main>
-          <aside className="hidden w-64 shrink-0 space-y-4 py-8 pr-6 xl:block">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
+          <aside className="hidden min-h-0 w-64 shrink-0 space-y-4 overflow-y-auto py-8 pr-6 xl:block">
             <GoalsSidebar />
             <TodosSidebar />
           </aside>
