@@ -1,13 +1,108 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatProps {
   sessionId: string;
   initialMessages: UIMessage[];
+}
+
+function ToolIndicator({ part }: { part: UIMessage["parts"][number] }) {
+  if (!isToolUIPart(part)) return null;
+  const name = getToolName(part);
+
+  const loadingLabels: Record<string, string> = {
+    search_memory: "Searching memory",
+    list_goals: "Loading goals",
+    create_goal: "Creating goal",
+    update_goal: "Updating goal",
+    close_goal: "Closing goal",
+    get_session_summary: "Loading session summary",
+  };
+
+  const loadingLabel = loadingLabels[name] ?? name;
+
+  if (part.state === "input-streaming" || part.state === "input-available") {
+    return (
+      <div className="flex items-center gap-1.5 py-0.5 pl-1 text-xs text-zinc-400 dark:text-zinc-500">
+        <span className="size-1.5 animate-pulse rounded-full bg-zinc-400 dark:bg-zinc-500" />
+        {loadingLabel}…
+      </div>
+    );
+  }
+
+  if (part.state === "output-available") {
+    const summary = formatToolOutput(name, part.output);
+    if (!summary) return null;
+    return (
+      <div className="py-0.5 pl-1 text-xs text-zinc-400 dark:text-zinc-500">
+        {summary}
+      </div>
+    );
+  }
+
+  if (part.state === "output-error") {
+    return (
+      <div className="py-0.5 pl-1 text-xs text-red-400 dark:text-red-500">
+        {loadingLabel} failed
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function formatToolOutput(
+  name: string,
+  output: unknown,
+): string | null {
+  if (output == null) return null;
+  const text = typeof output === "string" ? output : String(output);
+  if (!text.trim()) return null;
+
+  if (name === "list_goals") {
+    if (text === "No goals found.") return "No goals found";
+    const titles = text
+      .split("\n")
+      .filter((l) => l.startsWith("- "))
+      .map((l) => {
+        const match = l.match(/^- \[[^\]]+\] [^:]+: (.+?)(?:\s*—.*)?$/);
+        return match?.[1] ?? l.replace(/^- \[[^\]]+\] [^:]+: /, "");
+      });
+    if (titles.length === 0) return null;
+    const label = titles.length === 1 ? "goal" : "goals";
+    return `${titles.length} ${label}: ${titles.join(", ")}`;
+  }
+
+  if (name === "create_goal") {
+    const match = text.match(/^Created goal: (.+?) \(id:/);
+    return match ? `Created goal: ${match[1]}` : text;
+  }
+
+  if (name === "update_goal") {
+    const match = text.match(/^Updated goal: (.+?) \(status:/);
+    return match ? `Updated goal: ${match[1]}` : text;
+  }
+
+  if (name === "close_goal") {
+    const match = text.match(/^Closed goal: (.+?) \(status: (\w+)\)/);
+    return match ? `Closed goal: ${match[1]} (${match[2]})` : text;
+  }
+
+  if (name === "search_memory") {
+    if (text.startsWith("No relevant")) return null;
+    return text.length > 100 ? text.slice(0, 99) + "…" : text;
+  }
+
+  if (name === "get_session_summary") {
+    if (text.startsWith("No session") || text.startsWith("Session has")) return null;
+    return text.length > 100 ? text.slice(0, 99) + "…" : text;
+  }
+
+  return text.length > 100 ? text.slice(0, 99) + "…" : text;
 }
 
 export function Chat({ sessionId, initialMessages }: ChatProps) {
@@ -73,24 +168,39 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
             </Link>
           </div>
         )}
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+        {messages.map((message) => {
+          const toolParts = message.parts.filter((p) => isToolUIPart(p));
+          const textParts = message.parts.filter((p) => p.type === "text");
+          const hasText = textParts.some(
+            (p) => p.type === "text" && p.text.trim(),
+          );
+
+          return (
             <div
-              className={
-                message.role === "user"
-                  ? "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm leading-6 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-              }
+              key={message.id}
+              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              {message.parts.map((part, index) =>
-                part.type === "text" ? <span key={index}>{part.text}</span> : null,
-              )}
+              <div className="max-w-[80%]">
+                {toolParts.map((part, index) => (
+                  <ToolIndicator key={index} part={part} />
+                ))}
+                {hasText && (
+                  <div
+                    className={
+                      message.role === "user"
+                        ? "whitespace-pre-wrap break-words rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                        : "whitespace-pre-wrap break-words rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm leading-6 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                    }
+                  >
+                    {textParts.map((part, index) => (
+                      <span key={index}>{part.text}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {status === "submitted" && (
           <div className="flex justify-start">
             <div className="rounded-2xl bg-zinc-100 px-4 py-3 dark:bg-zinc-800">

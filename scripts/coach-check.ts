@@ -81,9 +81,18 @@ async function main() {
     assert.ok(/unprompted/i.test(openCtx.system));
     assert.ok(!openCtx.system.includes(CHECKIN_STRUCTURE));
     assert.ok(!openCtx.system.includes("Since last session"));
-    console.log("[ok] open sessions get persona without check-in flow");
+    assert.ok(
+      /search_memory/i.test(openCtx.system),
+      "persona should mention search_memory tool",
+    );
+    assert.ok(
+      /list_goals/i.test(openCtx.system),
+      "persona should mention list_goals tool",
+    );
+    console.log("[ok] open sessions get persona with tool hints, no check-in flow");
 
     // 3. Recap grounded in the most recent prior session's messages.
+    const recapCheckin = createSession({ kind: "checkin", title: "This week" });
     const prior = createSession({ title: "Last week" });
     addMessage({
       sessionId: prior.id,
@@ -96,7 +105,6 @@ async function main() {
       content: "Good plan. Report back next week.",
     });
 
-    const recapCheckin = createSession({ kind: "checkin", title: "This week" });
     const recapCtx = await buildContext(recapCheckin.id);
     assert.ok(recapCtx.system.includes("Since last session"));
     assert.ok(
@@ -117,6 +125,13 @@ async function main() {
         coveredMessages: 2,
       })
       .run();
+
+    // Touch prior so it's the most recent session for summaryCheckin's recap.
+    addMessage({
+      sessionId: prior.id,
+      role: "user",
+      content: "Quick follow-up.",
+    });
 
     const summaryCheckin = createSession({
       kind: "checkin",

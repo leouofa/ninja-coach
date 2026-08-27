@@ -1,6 +1,7 @@
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
+  isStepCount,
   streamText,
   toUIMessageStream,
   type UIMessage,
@@ -9,12 +10,12 @@ import {
 import { getModel } from "@/lib/ai";
 import { toUIMessages, uiMessageText } from "@/lib/chat/messages";
 import { addMessage, getSession } from "@/lib/db/queries";
-import { syncGoalsFromConversation } from "@/lib/goals";
 import {
   buildContext,
   maybeSummarizeSession,
   rememberExchange,
 } from "@/lib/memory";
+import { coachTools } from "@/lib/tools";
 
 interface ChatRequestBody {
   sessionId?: unknown;
@@ -87,6 +88,8 @@ export async function POST(request: Request) {
     model,
     system,
     messages: await convertToModelMessages(history),
+    tools: coachTools,
+    stopWhen: isStepCount(8),
     onError({ error }) {
       console.error("[chat] streaming error:", error);
     },
@@ -97,6 +100,7 @@ export async function POST(request: Request) {
   return createUIMessageStreamResponse({
     stream: toUIMessageStream({
       stream: result.stream,
+      tools: coachTools,
       originalMessages: history,
       onError: () => "Something went wrong while coaching. Please try again.",
       onEnd: ({ messages }) => {
@@ -117,10 +121,6 @@ export async function POST(request: Request) {
             assistantText: coachReply,
           }).catch((error) => {
             console.error("[chat] failed to remember exchange:", error);
-          });
-
-          void syncGoalsFromConversation(sessionId).catch((error) => {
-            console.error("[chat] goal sync failed:", error);
           });
         }
       },
