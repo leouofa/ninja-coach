@@ -75,7 +75,7 @@ export function SessionsSidebar() {
   }, []);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 lg:flex">
+    <aside className="hidden min-h-0 w-64 shrink-0 flex-col border-r border-zinc-200 dark:border-zinc-800 lg:flex">
       <div className="flex items-center justify-between px-4 pt-5 pb-3">
         <Link
           href="/"
