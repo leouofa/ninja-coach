@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, ne } from "drizzle-orm";
 
 import { db } from "./index";
 import {
@@ -47,7 +47,19 @@ export function getSession(id: string): Session | undefined {
 }
 
 export function listSessions(): Session[] {
-  return db.select().from(sessions).orderBy(desc(sessions.updatedAt)).all();
+  return db
+    .select()
+    .from(sessions)
+    .where(
+      exists(
+        db
+          .select({ id: messages.id })
+          .from(messages)
+          .where(eq(messages.sessionId, sessions.id)),
+      ),
+    )
+    .orderBy(desc(sessions.updatedAt))
+    .all();
 }
 
 export interface AddMessageInput {
