@@ -4,6 +4,8 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface ChatProps {
   sessionId: string;
@@ -217,19 +219,26 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
                 {toolParts.map((part, index) => (
                   <ToolIndicator key={index} part={part} />
                 ))}
-                {hasText && (
-                  <div
-                    className={
-                      message.role === "user"
-                        ? "whitespace-pre-wrap break-words rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                        : "whitespace-pre-wrap break-words rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm leading-6 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                    }
-                  >
+                {hasText && (message.role === "user" ? (
+                  <div className="whitespace-pre-wrap break-words rounded-2xl bg-zinc-900 px-4 py-2.5 text-sm leading-6 text-white dark:bg-zinc-100 dark:text-zinc-900">
                     {textParts.map((part, index) => (
                       <span key={index}>{part.text}</span>
                     ))}
                   </div>
-                )}
+                ) : (
+                  <div className="break-words rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm leading-6 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">
+                    {textParts.map((part, index) => (
+                      <div
+                        key={index}
+                        className="prose prose-sm prose-zinc max-w-none dark:prose-invert"
+                      >
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {part.text}
+                        </ReactMarkdown>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           );
