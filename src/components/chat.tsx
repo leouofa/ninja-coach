@@ -21,6 +21,10 @@ function ToolIndicator({ part }: { part: UIMessage["parts"][number] }) {
     update_goal: "Updating goal",
     close_goal: "Closing goal",
     get_session_summary: "Loading session summary",
+    list_todos: "Loading todos",
+    create_todo: "Adding todo",
+    update_todo: "Updating todo",
+    remove_todo: "Removing todo",
   };
 
   const loadingLabel = loadingLabels[name] ?? name;
@@ -99,6 +103,35 @@ function formatToolOutput(
 
   if (name === "get_session_summary") {
     if (text.startsWith("No session") || text.startsWith("Session has")) return null;
+    return text.length > 100 ? text.slice(0, 99) + "…" : text;
+  }
+
+  if (name === "list_todos") {
+    if (text === "No todos found.") return "No todos found";
+    const titles = text
+      .split("\n")
+      .filter((l) => l.startsWith("- "))
+      .map((l) => {
+        const match = l.match(/^\[[^\]]+\] [^:]+: (.+?)(?:\s*\(goal:.*|\s*—.*)?$/);
+        return match?.[1] ?? l.replace(/\[[^\]]+\] [^:]+: /, "");
+      });
+    if (titles.length === 0) return null;
+    const label = titles.length === 1 ? "todo" : "todos";
+    return `${titles.length} ${label}: ${titles.join(", ")}`;
+  }
+
+  if (name === "create_todo") {
+    const match = text.match(/^Created todo: (.+?) \(id:/);
+    return match ? `Added todo: ${match[1]}` : text;
+  }
+
+  if (name === "update_todo") {
+    const match = text.match(/^Updated todo: (.+?) \(status:/);
+    return match ? `Updated todo: ${match[1]}` : text;
+  }
+
+  if (name === "remove_todo") {
+    if (text.startsWith("Removed todo")) return "Removed todo";
     return text.length > 100 ? text.slice(0, 99) + "…" : text;
   }
 

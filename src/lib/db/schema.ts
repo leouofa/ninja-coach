@@ -39,6 +39,26 @@ export const goals = sqliteTable("goals", {
   updatedAt: msTimestamp("updated_at"),
 });
 
+export const todos = sqliteTable(
+  "todos",
+  {
+    id: text("id").primaryKey(),
+    goalId: text("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    status: text("status", {
+      enum: ["pending", "in_progress", "completed"],
+    })
+      .notNull()
+      .default("pending"),
+    createdAt: msTimestamp("created_at"),
+    updatedAt: msTimestamp("updated_at"),
+  },
+  (table) => [index("todos_goal_id_idx").on(table.goalId)],
+);
+
 export const embeddings = sqliteTable(
   "embeddings",
   {
@@ -71,5 +91,7 @@ export type MessageRole = (typeof messages.$inferInsert)["role"];
 export type Message = typeof messages.$inferSelect;
 export type GoalStatus = (typeof goals.$inferInsert)["status"];
 export type Goal = typeof goals.$inferSelect;
+export type TodoStatus = (typeof todos.$inferInsert)["status"];
+export type Todo = typeof todos.$inferSelect;
 export type Embedding = typeof embeddings.$inferSelect;
 export type Summary = typeof summaries.$inferSelect;

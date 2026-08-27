@@ -12,6 +12,11 @@ import {
   createGoal,
   updateGoalStatus,
   getGoal,
+  createTodo,
+  getTodo,
+  listTodos,
+  updateTodo,
+  deleteTodo,
 } from "../db/queries";
 import { getSummary } from "../memory";
 import { searchEmbeddings } from "../db/vector-search";
@@ -209,6 +214,116 @@ export const coachTools = {
 
       const recent = messages.slice(-6);
       return formatTranscript(recent);
+    },
+  }),
+
+  list_todos: tool({
+    description:
+      "Fetch the user's todos. Returns all open todos unless a goal id or status filter is specified. Todos are the concrete next actions tied to a goal.",
+    inputSchema: zodSchema(
+      z.object({
+        goalId: z.string().optional().describe("Filter by goal id"),
+        status: z
+          .enum(["pending", "in_progress", "completed"])
+          .optional()
+          .describe("Filter by todo status. Omit for all todos."),
+      }),
+    ),
+    execute: async (input) => {
+      const todos = listTodos({ goalId: input.goalId, status: input.status });
+      if (todos.length === 0) {
+        return "No todos found.";
+      }
+      return todos
+        .map(
+          (t) =>
+            `- [${t.status}] ${t.id}: ${t.title} (goal: ${t.goalId})${t.description ? ` — ${t.description}` : ""}`,
+        )
+        .join("\n");
+    },
+  }),
+
+  create_todo: tool({
+    description:
+      "Create a new todo for an existing goal. Use when the user commits to a concrete next action under a goal. Call create_goal first if the goal does not exist yet.",
+    inputSchema: zodSchema(
+      z.object({
+        goalId: z.string().describe("Id of the goal this todo belongs to"),
+        title: z.string().describe("Todo title"),
+        description: z
+          .string()
+          .optional()
+          .describe("Optional todo description or details"),
+      }),
+    ),
+    execute: async (input) => {
+      const goal = getGoal(input.goalId);
+      if (!goal) {
+        return `Goal ${input.goalId} not found. Create the goal first with create_goal.`;
+      }
+      const todo = createTodo({
+        goalId: input.goalId,
+        title: input.title,
+        description: input.description,
+      });
+      if (!todo) {
+        return `Failed to create todo under goal ${input.goalId}.`;
+      }
+      return `Created todo: ${todo.title} (id: ${todo.id})`;
+    },
+  }),
+
+  update_todo: tool({
+    description:
+      "Update an existing todo's title, description, or status. Use when the user revises a step, starts it (in_progress), or finishes it (completed).",
+    inputSchema: zodSchema(
+      z.object({
+        id: z.string().describe("Todo id"),
+        title: z.string().optional().describe("New title"),
+        description: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("New description (null to clear)"),
+        status: z
+          .enum(["pending", "in_progress", "completed"])
+          .optional()
+          .describe("New status"),
+      }),
+    ),
+    execute: async (input) => {
+      const existing = getTodo(input.id);
+      if (!existing) {
+        return `Todo ${input.id} not found.`;
+      }
+      const updated = updateTodo(input.id, {
+        title: input.title,
+        description: input.description,
+        status: input.status,
+      });
+      if (!updated) {
+        return `Failed to update todo ${input.id}.`;
+      }
+      return `Updated todo: ${updated.title} (status: ${updated.status})`;
+    },
+  }),
+
+  remove_todo: tool({
+    description:
+      "Permanently remove a todo. Use when the user decides a step is no longer relevant. For finishing a step, use update_todo with status completed instead.",
+    inputSchema: zodSchema(
+      z.object({
+        id: z.string().describe("Todo id"),
+      }),
+    ),
+    execute: async (input) => {
+      if (!getTodo(input.id)) {
+        return `Todo ${input.id} not found.`;
+      }
+      if (!deleteTodo(input.id)) {
+        return `Failed to remove todo ${input.id}.`;
+      }
+      return `Removed todo ${input.id}.`;
     },
   }),
 };
