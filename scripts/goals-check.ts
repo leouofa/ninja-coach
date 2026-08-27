@@ -17,6 +17,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { z } from "zod/v4";
 
 async function main() {
   const dir = mkdtempSync(path.join(tmpdir(), "ninja-coach-goals-check-"));
@@ -72,7 +73,7 @@ async function main() {
     console.log("[ok] create/update/close applied with dedup + guards");
 
     // 2. Coach tools are defined.
-    const { coachTools } = await import("../src/lib/tools");
+    const { coachTools, coachToolInputSchemas } = await import("../src/lib/tools");
     const toolNames = Object.keys(coachTools);
     assert.ok(toolNames.includes("list_goals"), "missing list_goals tool");
     assert.ok(toolNames.includes("create_goal"), "missing create_goal tool");
@@ -87,6 +88,37 @@ async function main() {
       assert.ok(t.description, `tool ${name} missing description`);
     }
     console.log("[ok] all tools have descriptions");
+
+    // Tool schemas tolerate null for optional fields (models commonly emit
+    // null for unset optionals).
+    const acceptsNull = (
+      schema: z.ZodSchema<unknown>,
+      input: Record<string, unknown>,
+      note: string,
+    ) => {
+      assert.ok(schema.safeParse(input).success, `schema should accept null: ${note}`);
+    };
+    const rejects = (schema: z.ZodSchema<unknown>, input: Record<string, unknown>, note: string) => {
+      assert.ok(!schema.safeParse(input).success, `schema should reject: ${note}`);
+    };
+
+    acceptsNull(coachToolInputSchemas.list_goals, { status: null }, "list_goals.status");
+    acceptsNull(
+      coachToolInputSchemas.create_goal,
+      { title: "x", description: null },
+      "create_goal.description",
+    );
+    acceptsNull(
+      coachToolInputSchemas.update_goal,
+      { id: "g", title: null, description: null, status: null },
+      "update_goal.title/description/status",
+    );
+    rejects(coachToolInputSchemas.close_goal, { id: null }, "close_goal.id");
+    rejects(coachToolInputSchemas.close_goal, { id: "g", status: null }, "close_goal.status");
+    acceptsNull(coachToolInputSchemas.search_memory, { query: "x", k: null }, "search_memory.k");
+    rejects(coachToolInputSchemas.search_memory, { query: null }, "search_memory.query");
+    acceptsNull(coachToolInputSchemas.get_session_summary, { sessionId: null }, "get_session_summary.sessionId");
+    console.log("[ok] tool schemas tolerate null for optional fields");
 
     console.log("\nGoals check passed.");
   } finally {

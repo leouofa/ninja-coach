@@ -35,20 +35,107 @@ function formatTranscript(
     .join("\n");
 }
 
+/**
+ * Tool input schemas, exported so acceptance checks can assert that optional
+ * fields tolerate `null`. Optional fields are `.nullish()` — models commonly
+ * emit `null` for unset optionals, and validation must not reject that.
+ */
+export const coachToolInputSchemas = {
+  list_goals: z.object({
+    status: z
+      .enum(["active", "paused", "completed", "dropped"])
+      .nullish()
+      .describe("Filter by goal status. Omit for all goals."),
+  }),
+
+  create_goal: z.object({
+    title: z.string().describe("Goal title"),
+    description: z
+      .string()
+      .nullish()
+      .describe("Optional goal description or details"),
+  }),
+
+  update_goal: z.object({
+    id: z.string().describe("Goal id"),
+    title: z.string().nullish().describe("New title"),
+    description: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("New description (null to clear)"),
+    status: z
+      .enum(["active", "paused", "completed", "dropped"])
+      .nullish()
+      .describe("New status"),
+  }),
+
+  close_goal: z.object({
+    id: z.string().describe("Goal id"),
+    status: z
+      .enum(["completed", "dropped"])
+      .describe("Final status: completed or dropped"),
+  }),
+
+  search_memory: z.object({
+    query: z
+      .string()
+      .describe("Search query — typically the user's message or topic"),
+    k: z.number().nullish().describe("Number of results to return (default 4)"),
+  }),
+
+  get_session_summary: z.object({
+    sessionId: z
+      .string()
+      .nullish()
+      .describe(
+        "Session id to summarize. Omit for the most recent prior session.",
+      ),
+  }),
+
+  list_todos: z.object({
+    goalId: z.string().nullish().describe("Filter by goal id"),
+    status: z
+      .enum(["pending", "in_progress", "completed"])
+      .nullish()
+      .describe("Filter by todo status. Omit for all todos."),
+  }),
+
+  create_todo: z.object({
+    goalId: z.string().describe("Id of the goal this todo belongs to"),
+    title: z.string().describe("Todo title"),
+    description: z
+      .string()
+      .nullish()
+      .describe("Optional todo description or details"),
+  }),
+
+  update_todo: z.object({
+    id: z.string().describe("Todo id"),
+    title: z.string().nullish().describe("New title"),
+    description: z
+      .string()
+      .nullable()
+      .optional()
+      .describe("New description (null to clear)"),
+    status: z
+      .enum(["pending", "in_progress", "completed"])
+      .nullish()
+      .describe("New status"),
+  }),
+
+  remove_todo: z.object({
+    id: z.string().describe("Todo id"),
+  }),
+} as const;
+
 export const coachTools = {
   list_goals: tool({
     description:
       "Fetch the user's current goals. Returns all goals unless a status filter is specified.",
-    inputSchema: zodSchema(
-      z.object({
-        status: z
-          .enum(["active", "paused", "completed", "dropped"])
-          .optional()
-          .describe("Filter by goal status. Omit for all goals."),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.list_goals),
     execute: async (input) => {
-      const goals = listGoals(input.status);
+      const goals = listGoals(input.status ?? undefined);
       if (goals.length === 0) {
         return "No goals found.";
       }
@@ -64,19 +151,11 @@ export const coachTools = {
   create_goal: tool({
     description:
       "Create a new goal for the user. Use when they commit to something new.",
-    inputSchema: zodSchema(
-      z.object({
-        title: z.string().describe("Goal title"),
-        description: z
-          .string()
-          .optional()
-          .describe("Optional goal description or details"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.create_goal),
     execute: async (input) => {
       const goal = createGoal({
         title: input.title,
-        description: input.description,
+        description: input.description ?? undefined,
       });
       return `Created goal: ${goal.title} (id: ${goal.id})`;
     },
@@ -85,21 +164,7 @@ export const coachTools = {
   update_goal: tool({
     description:
       "Update an existing goal's title, description, or status. Use when the user revises a goal.",
-    inputSchema: zodSchema(
-      z.object({
-        id: z.string().describe("Goal id"),
-        title: z.string().optional().describe("New title"),
-        description: z
-          .string()
-          .nullable()
-          .optional()
-          .describe("New description (null to clear)"),
-        status: z
-          .enum(["active", "paused", "completed", "dropped"])
-          .optional()
-          .describe("New status"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.update_goal),
     execute: async (input) => {
       const existing = getGoal(input.id);
       if (!existing) {
@@ -119,14 +184,7 @@ export const coachTools = {
   close_goal: tool({
     description:
       "Mark a goal as completed or dropped. Use when the user achieves or abandons a goal.",
-    inputSchema: zodSchema(
-      z.object({
-        id: z.string().describe("Goal id"),
-        status: z
-          .enum(["completed", "dropped"])
-          .describe("Final status: completed or dropped"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.close_goal),
     execute: async (input) => {
       const existing = getGoal(input.id);
       if (!existing) {
@@ -143,17 +201,7 @@ export const coachTools = {
   search_memory: tool({
     description:
       "Search past coaching conversations for relevant context. Always call early in a session and when the user references something from before.",
-    inputSchema: zodSchema(
-      z.object({
-        query: z
-          .string()
-          .describe("Search query — typically the user's message or topic"),
-        k: z
-          .number()
-          .optional()
-          .describe("Number of results to return (default 4)"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.search_memory),
     execute: async (input) => {
       let vector: number[];
       try {
@@ -174,16 +222,7 @@ export const coachTools = {
   get_session_summary: tool({
     description:
       "Get a summary of the current or a recent session for context. Use during check-ins to understand prior progress.",
-    inputSchema: zodSchema(
-      z.object({
-        sessionId: z
-          .string()
-          .optional()
-          .describe(
-            "Session id to summarize. Omit for the most recent prior session.",
-          ),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.get_session_summary),
     execute: async (input, { context }) => {
       const currentSessionId = (context as { sessionId?: string } | undefined)
         ?.sessionId;
@@ -220,17 +259,12 @@ export const coachTools = {
   list_todos: tool({
     description:
       "Fetch the user's todos. Returns all open todos unless a goal id or status filter is specified. Todos are the concrete next actions tied to a goal.",
-    inputSchema: zodSchema(
-      z.object({
-        goalId: z.string().optional().describe("Filter by goal id"),
-        status: z
-          .enum(["pending", "in_progress", "completed"])
-          .optional()
-          .describe("Filter by todo status. Omit for all todos."),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.list_todos),
     execute: async (input) => {
-      const todos = listTodos({ goalId: input.goalId, status: input.status });
+      const todos = listTodos({
+        goalId: input.goalId ?? undefined,
+        status: input.status ?? undefined,
+      });
       if (todos.length === 0) {
         return "No todos found.";
       }
@@ -246,16 +280,7 @@ export const coachTools = {
   create_todo: tool({
     description:
       "Create a new todo for an existing goal. Use when the user commits to a concrete next action under a goal. Call create_goal first if the goal does not exist yet.",
-    inputSchema: zodSchema(
-      z.object({
-        goalId: z.string().describe("Id of the goal this todo belongs to"),
-        title: z.string().describe("Todo title"),
-        description: z
-          .string()
-          .optional()
-          .describe("Optional todo description or details"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.create_todo),
     execute: async (input) => {
       const goal = getGoal(input.goalId);
       if (!goal) {
@@ -264,7 +289,7 @@ export const coachTools = {
       const todo = createTodo({
         goalId: input.goalId,
         title: input.title,
-        description: input.description,
+        description: input.description ?? undefined,
       });
       if (!todo) {
         return `Failed to create todo under goal ${input.goalId}.`;
@@ -276,30 +301,16 @@ export const coachTools = {
   update_todo: tool({
     description:
       "Update an existing todo's title, description, or status. Use when the user revises a step, starts it (in_progress), or finishes it (completed).",
-    inputSchema: zodSchema(
-      z.object({
-        id: z.string().describe("Todo id"),
-        title: z.string().optional().describe("New title"),
-        description: z
-          .string()
-          .nullable()
-          .optional()
-          .describe("New description (null to clear)"),
-        status: z
-          .enum(["pending", "in_progress", "completed"])
-          .optional()
-          .describe("New status"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.update_todo),
     execute: async (input) => {
       const existing = getTodo(input.id);
       if (!existing) {
         return `Todo ${input.id} not found.`;
       }
       const updated = updateTodo(input.id, {
-        title: input.title,
+        title: input.title ?? undefined,
         description: input.description,
-        status: input.status,
+        status: input.status ?? undefined,
       });
       if (!updated) {
         return `Failed to update todo ${input.id}.`;
@@ -311,11 +322,7 @@ export const coachTools = {
   remove_todo: tool({
     description:
       "Permanently remove a todo. Use when the user decides a step is no longer relevant. For finishing a step, use update_todo with status completed instead.",
-    inputSchema: zodSchema(
-      z.object({
-        id: z.string().describe("Todo id"),
-      }),
-    ),
+    inputSchema: zodSchema(coachToolInputSchemas.remove_todo),
     execute: async (input) => {
       if (!getTodo(input.id)) {
         return `Todo ${input.id} not found.`;
