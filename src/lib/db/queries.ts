@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { asc, desc, eq, ne } from "drizzle-orm";
+import { asc, desc, eq, inArray, ne } from "drizzle-orm";
 
 import { db } from "./index";
 import {
@@ -133,6 +133,15 @@ export function listGoals(status?: GoalStatus): Goal[] {
       .all();
   }
   return db.select().from(goals).orderBy(desc(goals.createdAt)).all();
+}
+
+export function listOpenGoals(): Goal[] {
+  return db
+    .select()
+    .from(goals)
+    .where(inArray(goals.status, ["active", "paused"]))
+    .orderBy(desc(goals.createdAt))
+    .all();
 }
 
 export function updateGoalStatus(id: string, status: GoalStatus): Goal | undefined {

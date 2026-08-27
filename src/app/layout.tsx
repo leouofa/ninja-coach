@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { GoalsSidebar } from "@/components/goals-sidebar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -52,9 +53,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </nav>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
-          {children}
-        </main>
+        <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-6 py-8">
+          <main className="w-full min-w-0 max-w-3xl flex-1">{children}</main>
+          <aside className="hidden w-64 shrink-0 lg:block">
+            <GoalsSidebar />
+          </aside>
+        </div>
       </body>
     </html>
   );
