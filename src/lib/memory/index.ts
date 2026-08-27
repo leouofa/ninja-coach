@@ -12,24 +12,17 @@ import {
   getMessages,
   getMostRecentSession,
   getSession,
-  listGoals,
 } from "../db/queries";
 import {
   summaries,
   type Message,
   type Summary,
 } from "../db/schema";
-import { insertEmbedding, searchEmbeddings } from "../db/vector-search";
+import { insertEmbedding } from "../db/vector-search";
 import { embed } from "../embeddings";
 
 export const VERBATIM_WINDOW = 16;
-export const MEMORY_TOP_K = 4;
 export const SUMMARIZE_CHUNK = 8;
-
-// Over-fetch candidates so hits excluded for already being in the verbatim
-// window don't shrink the result below MEMORY_TOP_K.
-const RETRIEVAL_CANDIDATES = MEMORY_TOP_K * 4;
-const MAX_MEMORY_CHARS = 480;
 
 const SUMMARIZER_PROMPT =
   "Summarize the following coaching conversation as a compact third-person " +
@@ -37,10 +30,6 @@ const SUMMARIZER_PROMPT =
   "the coach would need later. Reply with the summary only, no preamble.";
 
 export type SummarizeFn = (transcript: string) => Promise<string>;
-
-function clip(text: string, max = MAX_MEMORY_CHARS): string {
-  return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
-}
 
 function formatTranscript(messages: Message[]): string {
   return messages
@@ -143,24 +132,6 @@ export async function maybeSummarizeSession(
     .get();
 }
 
-async function retrieveMemories(
-  queryText: string,
-  excludeSourceIds: Set<string>,
-): Promise<string[]> {
-  let vector: number[];
-  try {
-    vector = await embed(queryText, "query");
-  } catch (error) {
-    console.error("[memory] query embedding failed:", error);
-    return [];
-  }
-
-  return searchEmbeddings(vector, { k: RETRIEVAL_CANDIDATES })
-    .filter((hit) => !excludeSourceIds.has(hit.sourceId))
-    .slice(0, MEMORY_TOP_K)
-    .map((hit) => clip(hit.text));
-}
-
 const RECAP_MESSAGE_COUNT = 6;
 
 function lastSessionRecap(currentSessionId: string): string | undefined {
@@ -188,10 +159,9 @@ export interface BuiltContext {
 }
 
 /**
- * Builds the RAG context for the next turn: persona + (for check-in
- * sessions) structure and a recap of the most recent prior session +
- * summary of compacted history + globally retrieved exchanges that are not
- * already visible in the verbatim window + the window itself.
+ * Builds the context for the next turn: persona + (for check-in sessions)
+ * structure and a recap of the most recent prior session + summary of
+ * compacted history + the verbatim window.
  */
 export async function buildContext(sessionId: string): Promise<BuiltContext> {
   const session = getSession(sessionId);
@@ -208,35 +178,9 @@ export async function buildContext(sessionId: string): Promise<BuiltContext> {
     }
   }
 
-  // Active goals are injected into every session so the coach always knows
-  // what the user is working toward.
-  const activeGoals = listGoals("active");
-  if (activeGoals.length > 0) {
-    sections.push(
-      `Active goals:\n${activeGoals
-        .map((g) => `- ${g.title}${g.description ? ` - ${g.description}` : ""}`)
-        .join("\n")}`,
-    );
-  }
-
   const summary = getSummary(sessionId);
   if (summary) {
     sections.push(`Earlier in this conversation:\n${summary.content}`);
-  }
-
-  const lastUser = [...history].reverse().find((m) => m.role === "user");
-  if (lastUser) {
-    // Exchange ids are the user message ids of their turn, so any message
-    // id in the window also covers its exchange's assistant reply.
-    const memories = await retrieveMemories(
-      lastUser.content,
-      new Set(window.map((m) => m.id)),
-    );
-    if (memories.length > 0) {
-      sections.push(
-        `Relevant past conversations:\n${memories.map((m) => `- ${m}`).join("\n")}`,
-      );
-    }
   }
 
   return { system: sections.join("\n\n"), window };

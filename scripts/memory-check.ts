@@ -3,11 +3,8 @@
  *
  * Verifies that:
  *   1. rememberExchange stores each user/coach exchange as one document.
- *   2. buildContext retrieves relevant exchanges across sessions into the
- *      system prompt (global long-term memory).
- *   3. Exchanges already visible in the verbatim window are excluded from
- *      retrieval, and the window stays bounded as history grows.
- *   4. maybeSummarizeSession compacts history older than the window,
+ *   2. The verbatim window stays bounded as history grows.
+ *   3. maybeSummarizeSession compacts history older than the window,
  *      upserts the summary, and the composed prompt includes it.
  *
  * Runs against a throwaway database (DATABASE_PATH) and is fully
@@ -49,7 +46,6 @@ async function main() {
 
     // Import after DATABASE_PATH is set so the singleton picks up the temp DB.
     const {
-      MEMORY_TOP_K,
       SUMMARIZE_CHUNK,
       VERBATIM_WINDOW,
       buildContext,
@@ -95,64 +91,30 @@ async function main() {
     assert.equal(await exchangeCount(dbFile), aExchanges.length);
     console.log("[ok] incomplete exchanges skipped");
 
-    // 2. Cross-session recall: session B asks about running.
+    // 2. Verbatim window stays bounded.
     const sessionB = createSession({ title: "New chat" });
-    const askRunning = addMessage({
-      sessionId: sessionB.id,
-      role: "user",
-      content: "How is my running training going this month?",
-    });
-
-    const ctx = await buildContext(sessionB.id);
-    assert.ok(
-      ctx.system.includes("half marathon"),
-      "expected marathon exchange retrieved from session A",
-    );
-    assert.ok(ctx.system.includes("Relevant past conversations"));
-    assert.equal(ctx.window.length, 1);
-    assert.equal(ctx.window[0]?.id, askRunning.id);
-    console.log("[ok] global retrieval surfaces other sessions' exchanges");
-
-    // 3. In-window exclusion + bounded window.
-    // Seed B with a full window of alternating messages; the last user turn
-    // also asks about running.
-    for (let i = 0; i < VERBATIM_WINDOW - 1; i++) {
+    for (let i = 0; i < VERBATIM_WINDOW + 4; i++) {
       addMessage({
         sessionId: sessionB.id,
-        role: i % 2 === 0 ? "assistant" : "user",
-        content: i % 2 === 0 ? "Keep it up." : `Filler message number ${i}.`,
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: `Filler message number ${i}.`,
+        id: `b-filler-${i}`,
       });
     }
     addMessage({
       sessionId: sessionB.id,
       role: "user",
-      content: "Remind me how my half marathon training is going.",
-    });
-
-    // Manually store an exchange whose id lives inside the verbatim window:
-    // it must NOT be duplicated into the memory section.
-    const inWindowUser = addMessage({
-      sessionId: sessionB.id,
-      role: "user",
-      content: "In-window question about marathon shoes.",
-    });
-    await rememberExchange({
-      userMessageId: inWindowUser.id,
-      userText: "In-window question about marathon shoes.",
-      assistantText: "In-window answer that must not be retrieved again.",
+      content: "Last message.",
+      id: "b-last",
     });
 
     const bounded = await buildContext(sessionB.id);
     assert.ok(bounded.window.length <= VERBATIM_WINDOW);
-    assert.ok(bounded.system.includes("half marathon"));
-    assert.ok(
-      !bounded.system.includes("must not be retrieved again"),
-      "in-window exchange leaked into retrieval",
-    );
-    assert.ok(!bounded.system.includes("Earlier in this conversation"));
-    console.log("[ok] in-window exchanges excluded, window stays bounded");
+    assert.ok(bounded.window.length >= 1);
+    assert.equal(bounded.window[bounded.window.length - 1]?.role, "user");
+    console.log("[ok] window stays bounded as history grows");
 
-    // 4. Summarization thresholds (stubbed summarizer).
+    // 3. Summarization thresholds (stubbed summarizer).
     let summarizeCalls = 0;
     const stub = async (transcript: string) => {
       summarizeCalls++;
@@ -198,7 +160,6 @@ async function main() {
     assert.equal(summarizeCalls, 1);
 
     // After SUMMARIZE_CHUNK more messages, the summary refreshes (upsert).
-    // Messages arrive as user/coach pairs, so half as many iterations.
     for (let i = 0; i < SUMMARIZE_CHUNK / 2; i++) {
       addMessage({ sessionId: sessionA.id, role: "user", content: `Extra update ${i}.` });
       addMessage({ sessionId: sessionA.id, role: "assistant", content: "Heard." });
@@ -215,7 +176,7 @@ async function main() {
     );
     console.log("[ok] summary upserts lazily per chunk");
 
-    // 5. Composed prompt includes the compacted summary.
+    // 4. Composed prompt includes the compacted summary.
     addMessage({
       sessionId: sessionA.id,
       role: "user",
@@ -226,15 +187,7 @@ async function main() {
     assert.ok(withSummary.system.includes("Earlier in this conversation"));
     assert.ok(withSummary.window.length <= VERBATIM_WINDOW);
     assert.ok(withSummary.window.length >= 1);
-    console.log("[ok] system prompt carries compacted summary + memories");
-
-    // Memory section respects MEMORY_TOP_K at most.
-    const memorySection = withSummary.system.split("Relevant past conversations:")[1];
-    if (memorySection) {
-      const bullets = memorySection.split("\n").filter((l) => l.startsWith("- "));
-      assert.ok(bullets.length <= MEMORY_TOP_K);
-    }
-    console.log("[ok] memory injection capped at top-k");
+    console.log("[ok] system prompt carries compacted summary");
 
     console.log("\nMemory check passed.");
   } finally {

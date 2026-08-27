@@ -1,13 +1,60 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, getToolName, isToolUIPart, type UIMessage } from "ai";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 interface ChatProps {
   sessionId: string;
   initialMessages: UIMessage[];
+}
+
+function ToolIndicator({ part }: { part: UIMessage["parts"][number] }) {
+  if (!isToolUIPart(part)) return null;
+  const name = getToolName(part);
+
+  const labels: Record<string, string> = {
+    search_memory: "Searching memory…",
+    list_goals: "Loading goals…",
+    create_goal: "Creating goal",
+    update_goal: "Updating goal",
+    close_goal: "Closing goal",
+    get_session_summary: "Loading session summary…",
+  };
+
+  const label = labels[name] ?? name;
+
+  if (part.state === "input-streaming" || part.state === "input-available") {
+    return (
+      <div className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500">
+        <span className="size-1.5 animate-pulse rounded-full bg-zinc-400 dark:bg-zinc-500" />
+        {label}
+      </div>
+    );
+  }
+
+  if (part.state === "output-available") {
+    const output =
+      typeof part.output === "string" ? part.output : JSON.stringify(part.output);
+    if (!output || output === '""') return null;
+    return (
+      <div className="rounded-lg bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500 dark:bg-zinc-800/50 dark:text-zinc-400">
+        <span className="font-medium">{label.replace("…", "")}:</span>{" "}
+        {output.length > 120 ? output.slice(0, 119) + "…" : output}
+      </div>
+    );
+  }
+
+  if (part.state === "output-error") {
+    return (
+      <div className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-500 dark:bg-red-950 dark:text-red-400">
+        {label} failed
+      </div>
+    );
+  }
+
+  return null;
 }
 
 export function Chat({ sessionId, initialMessages }: ChatProps) {
@@ -85,9 +132,15 @@ export function Chat({ sessionId, initialMessages }: ChatProps) {
                   : "max-w-[80%] whitespace-pre-wrap break-words rounded-2xl bg-zinc-100 px-4 py-2.5 text-sm leading-6 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
               }
             >
-              {message.parts.map((part, index) =>
-                part.type === "text" ? <span key={index}>{part.text}</span> : null,
-              )}
+              {message.parts.map((part, index) => {
+                if (part.type === "text") {
+                  return <span key={index}>{part.text}</span>;
+                }
+                if (isToolUIPart(part)) {
+                  return <ToolIndicator key={index} part={part} />;
+                }
+                return null;
+              })}
             </div>
           </div>
         ))}
