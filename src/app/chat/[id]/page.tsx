@@ -15,7 +15,7 @@ export default async function ChatPage(props: PageProps<"/chat/[id]">) {
   const initialMessages = toUIMessages(getMessages(id));
 
   return (
-    <div className="flex h-[calc(100dvh-8rem)] min-h-[30rem] flex-col gap-3">
+    <div className="mx-auto flex h-full w-full max-w-3xl min-h-0 flex-col gap-3 px-6 py-8">
       <div className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200 pb-3 dark:border-zinc-800">
         <div className="min-w-0">
           <div className="flex items-center gap-2">

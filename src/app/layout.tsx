@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { Geist, Geist_Mono } from "next/font/google";
 import { GoalsSidebar } from "@/components/goals-sidebar";
+import { SessionsSidebar } from "@/components/sessions-sidebar";
 import { TodosSidebar } from "@/components/todos-sidebar";
 import "./globals.css";
 
@@ -29,34 +30,33 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
-        <header className="border-b border-zinc-200 dark:border-zinc-800">
-          <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-6 py-4">
+      <body className="flex min-h-dvh flex-col bg-background text-foreground">
+        <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4 dark:border-zinc-800 lg:hidden">
+          <Link
+            href="/"
+            className="text-lg font-semibold tracking-tight hover:text-zinc-600 dark:hover:text-zinc-300"
+          >
+            Ninja Coach
+          </Link>
+          <nav className="flex shrink-0 items-center gap-2">
             <Link
-              href="/"
-              className="text-lg font-semibold tracking-tight hover:text-zinc-600 dark:hover:text-zinc-300"
+              href="/new"
+              className="rounded-xl bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              Ninja Coach
+              New chat
             </Link>
-            <nav className="flex shrink-0 items-center gap-2">
-              <Link
-                href="/new"
-                className="rounded-xl px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                New chat
-              </Link>
-              <Link
-                href="/checkin"
-                className="rounded-xl border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
-              >
-                Weekly check-in
-              </Link>
-            </nav>
-          </div>
-        </header>
-        <div className="mx-auto flex w-full max-w-6xl flex-1 gap-8 px-6 py-8">
-          <main className="w-full min-w-0 max-w-3xl flex-1">{children}</main>
-          <aside className="hidden w-64 shrink-0 space-y-4 lg:block">
+            <Link
+              href="/checkin"
+              className="rounded-xl border border-zinc-300 px-3 py-1.5 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            >
+              Check-in
+            </Link>
+          </nav>
+        </div>
+        <div className="flex min-h-0 flex-1">
+          <SessionsSidebar />
+          <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+          <aside className="hidden w-64 shrink-0 space-y-4 py-8 pr-6 xl:block">
             <GoalsSidebar />
             <TodosSidebar />
           </aside>
