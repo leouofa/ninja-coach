@@ -15,19 +15,19 @@ const PROVIDERS: Record<
   }
 > = {
   groq: {
-    defaultModel: "openai/gpt-oss-120b",
+    defaultModel: "qwen/qwen3.8-27b",
     apiKeyEnv: "GROQ_API_KEY",
     create: (apiKey, modelId) => createGroq({ apiKey })(modelId),
   },
   google: {
-    defaultModel: "gemini-3.6-flash",
+    defaultModel: "gemini-3.7-flash",
     apiKeyEnv: "GOOGLE_GENERATIVE_AI_API_KEY",
     create: (apiKey, modelId) => createGoogle({ apiKey })(modelId),
   },
 };
 
 function resolveProvider(): ProviderId {
-  const id = (process.env.AI_PROVIDER?.trim().toLowerCase() || "groq") as ProviderId;
+  const id = (process.env.AI_PROVIDER?.trim().toLowerCase() || "google") as ProviderId;
   const provider = PROVIDERS[id];
   if (!provider) {
     throw new Error(
